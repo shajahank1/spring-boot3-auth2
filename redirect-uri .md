@@ -84,3 +84,74 @@ You should be redirected to http://localhost:8080/authorized?code=AUTH_CODE, and
 Summary
 You can handle the redirect_uri within the same Spring Boot application by registering an endpoint (@Controller) that matches the redirect_uri.
 This approach lets you control how the authorization code is handled, either by displaying a success message or further processing the authorization code.
+
+# http://localhost:8080/authorized&scope=message.read this need to put the registed_client table in database?
+Yes, you need to register your client with the redirect_uri and scope in the oauth2_registered_client table. This allows the Spring Authorization Server to recognize your OAuth2 client application and handle the authorization requests properly.
+
+Here’s a detailed explanation of how to ensure your client is correctly registered, along with an example SQL script to insert the necessary data.
+
+Step-by-Step Process
+Register the OAuth2 Client with the redirect_uri and desired scope in the oauth2_registered_client table.
+The redirect_uri should exactly match the URI you intend to use (e.g., http://localhost:8080/authorized).
+The scope defines what access levels or permissions the client is requesting.
+Example SQL to Insert the Client Data
+The following SQL example shows how to register your client in the oauth2_registered_client table:
+
+SQL Script
+```
+INSERT INTO oauth2_registered_client (
+    id, 
+    client_id, 
+    client_id_issued_at, 
+    client_secret, 
+    client_secret_expires_at, 
+    client_name, 
+    client_authentication_methods, 
+    authorization_grant_types, 
+    redirect_uris, 
+    scopes, 
+    client_settings, 
+    token_settings
+) VALUES (
+    '1', -- Use a unique ID for the client
+    'my-client', -- The client_id that your application will use
+    CURRENT_TIMESTAMP, -- The timestamp when the client ID was issued
+    '{noop}secret', -- The client secret (encoded or plaintext if using '{noop}')
+    NULL, -- The client secret expiration (NULL if it doesn't expire)
+    'My Client Application', -- A friendly name for your client
+    'client_secret_basic', -- The authentication method (e.g., client_secret_basic)
+    'authorization_code,refresh_token', -- The grant types supported
+    'http://localhost:8080/authorized', -- The redirect URI for the client
+    'message.read,message.write', -- Scopes that the client is allowed to request
+    '{"requireAuthorizationConsent":true}', -- Client settings (JSON structure)
+    '{"accessTokenTimeToLive":3600, "refreshTokenTimeToLive":86400}' -- Token settings (JSON structure)
+);
+```
+Explanation of the Fields
+id: A unique ID for your registered client (e.g., '1').
+client_id: The ID your client application will use (e.g., 'my-client').
+client_secret: The secret your client will use for authentication (e.g., {noop}secret). The {noop} prefix means it's stored in plaintext for simplicity.
+authorization_grant_types: The grant types your client supports, such as authorization_code and refresh_token.
+redirect_uris: The redirect_uri that your authorization server will redirect to after authorization (e.g., http://localhost:8080/authorized).
+scopes: The allowed scopes for this client (e.g., message.read,message.write).
+client_settings: JSON settings to configure client-specific properties.
+token_settings: JSON settings to configure token properties like expiry times.
+Make Sure Your redirect_uri Matches Exactly
+The redirect_uri you use in your client registration must match the redirect URI specified in your authorization request. For example, if you register http://localhost:8080/authorized, you must use this exact value when you initiate the authorization flow.
+
+Initiating the Authorization Flow
+When you start the OAuth2 authorization process, you might use a URL like:
+
+```
+http://localhost:8080/oauth2/authorize?response_type=code&client_id=my-client&redirect_uri=http://localhost:8080/authorized&scope=message.read
+```
+client_id: Matches the client_id in the oauth2_registered_client table (my-client in this example).
+redirect_uri: Must exactly match what you registered (http://localhost:8080/authorized).
+scope: One or more scopes that are registered for this client (message.read in this example).
+Verifying the Setup
+Start your Spring Authorization Server and use the URL above to test the flow.
+Ensure you are redirected to http://localhost:8080/authorized with an authorization code.
+Summary
+Yes, you must register the client with the redirect_uri and scopes in the oauth2_registered_client table.
+Ensure the redirect_uri in your request matches the entry in the database.
+The OAuth2 authorization flow will work correctly once the client is registered.
