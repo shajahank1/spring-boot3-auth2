@@ -267,3 +267,80 @@ Use Basic Auth for authentication.
 Set grant_type to client_credentials in the request body.
 Include scope=message.read or any other scope you have configured.
 If everything is set up correctly, you should receive a valid access token in response.
+
+
+To encode the client_secret using BCryptPasswordEncoder and insert it into your database when your Spring Boot application starts, you can use a CommandLineRunner. This approach allows you to perform database initialization or updates programmatically during the application startup.
+
+## Step-by-Step Guide to Using a CommandLineRunner
+Create a class that implements CommandLineRunner.
+In the run method, check if the client_id already exists.
+If not, encode the client_secret and save the RegisteredClient details to the database.
+Here's how to do it:
+
+Example Implementation
+```
+package om.gov.moh.spring_auth2_server.config;
+
+import java.util.Optional;
+
+import org.springframework.boot.CommandLineRunner;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.core.AuthorizationGrantType;
+import org.springframework.security.oauth2.core.ClientAuthenticationMethod;
+import org.springframework.security.oauth2.core.oidc.OidcScopes;
+import org.springframework.security.oauth2.server.authorization.client.RegisteredClient;
+import org.springframework.security.oauth2.server.authorization.client.RegisteredClientRepository;
+
+import om.gov.moh.spring_auth2_server.repository.RegisteredClientRepoCustom;
+
+@Configuration
+public class OAuth2ClientInitializerConfig {
+
+    @Bean
+    CommandLineRunner init(RegisteredClientRepoCustom registeredClientRepoCustom, PasswordEncoder passwordEncoder) {
+        return args -> {
+            // Check if the client already exists
+            Optional<RegisteredClient> existingClient = Optional.ofNullable(registeredClientRepoCustom.findByClientId("messaging-client"));
+
+            if (existingClient.isEmpty()) {
+                // Create and save a new RegisteredClient
+                RegisteredClient registeredClient = RegisteredClient.withId("messaging-client-id") // Use a unique UUID if needed
+                        .clientId("messaging-client")
+                        .clientSecret(passwordEncoder.encode("secret")) // Encode the client secret
+                        .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
+                        .authorizationGrantType(AuthorizationGrantType.CLIENT_CREDENTIALS)
+                        .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
+                        .authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
+                        .redirectUri("http://127.0.0.1:8080/login/oauth2/code/messaging-client-oidc")
+                        .redirectUri("http://127.0.0.1:8080/authorized")
+                        .scope(OidcScopes.OPENID)
+                        .scope(OidcScopes.PROFILE)
+                        .scope("message.read")
+                        .scope("message.write")
+                        .build();
+
+                // Save the RegisteredClient using your custom JPA implementation
+                registeredClientRepoCustom.save(registeredClient);
+
+                System.out.println("Client 'messaging-client' has been initialized.");
+            } else {
+                System.out.println("Client 'messaging-client' already exists.");
+            }
+        };
+    }
+}
+```
+Explanation
+@Bean CommandLineRunner init(...): The CommandLineRunner bean runs when the application starts.
+The init method:
+Checks if a client with client_id = 'messaging-client' already exists.
+If not, it creates a new RegisteredClient, encodes the client_secret using BCryptPasswordEncoder, and saves it using your custom RegisteredClientRepoCustom.
+Notes
+This approach ensures that the client credentials are properly encoded and inserted into the database when your application starts.
+You don't need to manually encode and insert the client_secret every time you make a change.
+Summary
+Use CommandLineRunner to handle initialization logic during startup.
+Ensure the client_secret is encoded with BCryptPasswordEncoder and saved to your database correctly.
+Now, whenever you start your Spring Boot application, the RegisteredClient will be initialized in your database,
