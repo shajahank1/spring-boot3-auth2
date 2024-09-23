@@ -155,3 +155,24 @@ Summary
 Yes, you must register the client with the redirect_uri and scopes in the oauth2_registered_client table.
 Ensure the redirect_uri in your request matches the entry in the database.
 The OAuth2 authorization flow will work correctly once the client is registered.
+
+
+http://localhost:8080/oauth2/authorize?response_type=code&client_id=my-client&redirect_uri=http://localhost:8080/authorized&scope=message.read
+in the above one redirect_uri is really required as i have configured in database table level .
+ChatGPT said:
+ChatGPT
+Memory updated
+Yes, the redirect_uri is required in the request, even if you've configured it at the database level. This ensures that the authorization request matches one of the pre-registered redirect URIs for security reasons. The authorization server validates that the redirect_uri parameter in the request is a match with the URI(s) stored in your database to prevent open redirect vulnerabilities.
+
+
+
+
+
+
+You said:
+client_id required ?
+ChatGPT said:
+ChatGPT
+Yes, the client_id is required in the authorization request. The client_id uniquely identifies the client (application) making the request to the authorization server. It ensures that the authorization server knows which client is requesting authorization and allows the server to validate the request against the registered client details (e.g., allowed redirect URIs, scopes, etc.).
+
+Without the client_id, the authorization server cannot identify the client making the request and will reject the request as invalid.
