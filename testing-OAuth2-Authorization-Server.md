@@ -137,3 +137,69 @@ Invalid client credentials
 Summary
 Use Postman to manually test the OAuth2 endpoints (/oauth2/token and /oauth2/authorize).
 Write integration tests using JUnit and Spring Boot's test utilities to automate testing.
+
+
+## check if any error found
+
+1. Check Client Credentials
+Ensure that the client_id and client_secret provided in your request match exactly with what you have defined in your database or in-memory configuration.
+
+For example, based on your configuration:
+
+clientId: messaging-client
+clientSecret: secret
+If you’re testing via Postman or another tool, make sure these values are used correctly.
+
+2. Verify Basic Authentication Header in Postman
+When using Postman:
+
+Go to the Authorization tab.
+Select Basic Auth as the type.
+Enter client_id (messaging-client) in the Username field.
+Enter client_secret (secret) in the Password field.
+This ensures the proper Authorization: Basic header is set, with the client_id and client_secret encoded in Base64.
+
+3. Verify Registered Client Configuration in Your Application
+Make sure that your RegisteredClient is properly saved in your JPA repository or in-memory configuration. Here's a quick check:
+
+Example of RegisteredClient Configuration
+```
+@Bean
+public RegisteredClientRepository registeredClientRepository(PasswordEncoder passwordEncoder) {
+    RegisteredClient registeredClient = RegisteredClient.withId(UUID.randomUUID().toString())
+            .clientId("messaging-client")
+            .clientSecret(passwordEncoder.encode("secret")) // Ensure it's encoded correctly
+            .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
+            .authorizationGrantType(AuthorizationGrantType.CLIENT_CREDENTIALS)
+            .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
+            .authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
+            .redirectUri("http://127.0.0.1:8080/login/oauth2/code/messaging-client-oidc")
+            .redirectUri("http://127.0.0.1:8080/authorized")
+            .scope(OidcScopes.OPENID)
+            .scope(OidcScopes.PROFILE)
+            .scope("message.read")
+            .scope("message.write")
+            .build();
+
+    return new InMemoryRegisteredClientRepository(registeredClient);
+}
+```
+Ensure clientSecret is properly encoded using the BCryptPasswordEncoder.
+Make sure the clientAuthenticationMethod is set to ClientAuthenticationMethod.CLIENT_SECRET_BASIC.
+4. Verify Password Encoding
+If you've changed the clientSecret, make sure you’re using the encoded value when registering the client. If you store client details in your database, the clientSecret should be encoded using BCryptPasswordEncoder.
+
+You can test encoding with the following:
+
+```
+PasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+System.out.println(passwordEncoder.encode("secret"));
+```
+Store this encoded value in your database.
+
+5. Common Troubleshooting Steps
+Ensure Proper Endpoints: Make sure you're using the correct URL, for example, /oauth2/token.
+Correct Headers: Set Content-Type: application/x-www-form-urlencoded in your request.
+Database Check: If using JPA, ensure your registered_client table is populated correctly.
+Summary
+The invalid_client error typically results from incorrect client credentials, improper Basic Auth setup, or an improperly registered client. Ensure all configurations, credentials, and encoding match exactly as expected by the server.
