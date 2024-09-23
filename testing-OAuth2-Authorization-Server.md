@@ -203,3 +203,67 @@ Correct Headers: Set Content-Type: application/x-www-form-urlencoded in your req
 Database Check: If using JPA, ensure your registered_client table is populated correctly.
 Summary
 The invalid_client error typically results from incorrect client credentials, improper Basic Auth setup, or an improperly registered client. Ensure all configurations, credentials, and encoding match exactly as expected by the server.
+
+## Troubleshoot the invalid_client Error
+
+Steps to Troubleshoot the invalid_client Error
+1. Verify the Client Credentials in Postman
+Make sure you are using the exact values when testing with Postman:
+
+Client ID: messaging-client
+Client Secret: secret (in plain text, not encoded)
+When using Basic Authentication in Postman:
+
+Go to the Authorization tab.
+Set the type to Basic Auth.
+Enter messaging-client in the Username field.
+Enter secret in the Password field.
+Postman will automatically encode the credentials in Base64.
+
+2. Verify the Password Encoder Setup in Your Spring Boot Configuration
+Ensure that your PasswordEncoder is set up correctly in your SecurityConfig and is being used in your RegisteredClientRepository:
+
+```
+@Bean
+public PasswordEncoder passwordEncoder() {
+    return new BCryptPasswordEncoder();
+}
+```
+Ensure that the clientSecret is stored in the database in the BCrypt-encoded format, as you have done.
+
+3. Double-Check Your Registered Client Configuration
+If you're using JPA, verify that your client information is correctly stored in the registered_client table, with the correct client_id and client_secret fields.
+
+You can do this by running an SQL query like:
+
+```
+SELECT client_id, client_secret FROM registered_client WHERE client_id = 'messaging-client';
+```
+Make sure that the client_secret column contains the BCrypt-encoded password "$2a$10$7dUvPLGBgPzfxO1I59YQ3ubEsGJN6AEV9dG1ZBa1M9BdpkY.pTOG".
+
+4. Test Encoding Programmatically
+You can test the password encoding to verify that BCrypt is correctly encoding the value. Add this to a simple test or main method:
+
+```
+public static void main(String[] args) {
+    PasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+    boolean matches = passwordEncoder.matches("secret", "$2a$10$7dUvPLGBgPzfxO1I59YQ3ubEsGJN6AEV9dG1ZBa1M9BdpkY.pTOG");
+    System.out.println("Does the password match? " + matches);
+}
+```
+If this prints true, it means that the BCrypt encoding is working correctly, and the stored password matches the provided one.
+
+5. Check Spring Security OAuth2 Configuration
+Ensure that your RegisteredClientRepository is being used correctly and there are no conflicting beans or configurations that could be affecting how client authentication is handled.
+
+Common Issues and Solutions
+Ensure Consistent Configuration: Ensure you haven't mixed InMemoryRegisteredClientRepository and JPA-based configurations in your SecurityConfig.
+Case Sensitivity: Ensure that the client_id and client_secret are entered with the exact same casing as they are stored in the database.
+Testing the Token Endpoint Again
+After verifying everything, try again using Postman:
+
+POST request to /oauth2/token.
+Use Basic Auth for authentication.
+Set grant_type to client_credentials in the request body.
+Include scope=message.read or any other scope you have configured.
+If everything is set up correctly, you should receive a valid access token in response.
