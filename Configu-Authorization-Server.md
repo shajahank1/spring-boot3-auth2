@@ -218,3 +218,119 @@ JWT token validation is enabled using .oauth2ResourceServer(oauth2 -> oauth2.jwt
 Authentication Handling:
 
 When a user tries to access a protected resource without authentication, they are redirected to the /login page.
+
+
+## additional info
+
+1. OAuth2 Authorization Server Configuration:
+The core setup for the Authorization Server using OAuth2AuthorizationServerConfiguration.applyDefaultSecurity(http) is the recommended approach in Spring Security. This method applies the default security filters needed for OAuth2 endpoints, like /oauth2/authorize, /oauth2/token, and others.
+
+OpenID Connect (OIDC) Support:
+By enabling oidc(Customizer.withDefaults()), you're correctly setting up OpenID Connect 1.0, which is optional but widely used when clients need identity data (e.g., user information) along with access tokens. If you're not using OpenID Connect, you can remove this line, but keeping it doesn't cause harm unless it's unnecessary.
+
+Exception Handling and JWT Support:
+The configuration to redirect to /login when not authenticated and the JWT configuration to validate tokens are both standard practices.
+
+2. Form Login for Default Security Chain:
+The second filter chain (defaultSecurityFilterChain) that secures general application access is also correctly implemented:
+
+Form Login:
+Form-based login (formLogin()) is a common choice for applications that rely on username and password authentication. You can customize the login form later, but this basic setup is correct.
+
+Authorization for all requests:
+By specifying authorizeHttpRequests().anyRequest().authenticated(), you're requiring that every request is authenticated, which is good if your app needs that level of security.
+
+3. Additional Considerations:
+Registering Clients:
+
+Make sure you have a RegisteredClientRepository bean defined in your configuration to manage OAuth2 clients (the apps or services requesting tokens). Without this, the Authorization Server won’t know about any clients.
+
+Example:
+
+```
+@Bean
+public RegisteredClientRepository registeredClientRepository() {
+    RegisteredClient registeredClient = RegisteredClient.withId("client-id")
+        .clientId("client-id")
+        .clientSecret("{noop}client-secret") // NoOpPasswordEncoder for testing only
+        .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
+        .authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
+        .redirectUri("https://example.com/callback")
+        .scope("read")
+        .scope("write")
+        .build();
+    return new InMemoryRegisteredClientRepository(registeredClient);
+}
+```
+Authorization Server Settings:
+
+You may need to provide AuthorizationServerSettings bean to customize details such as the issuer URI, token endpoints, etc.
+
+```
+@Bean
+public AuthorizationServerSettings authorizationServerSettings() {
+    return AuthorizationServerSettings.builder()
+        .issuer("https://your-authorization-server.com") // Set the issuer URL
+        .build();
+}
+```
+Token Signing Keys:
+
+You need a JWKSource bean for signing JWT tokens. Here's an example of how to generate and manage your keys:
+
+```
+@Bean
+public JWKSource<SecurityContext> jwkSource() {
+    RSAKey rsaKey = ... // Generate or load an RSA key
+    JWKSet jwkSet = new JWKSet(rsaKey);
+    return (jwkSelector, securityContext) -> jwkSelector.select(jwkSet);
+}
+```
+Complete Example of Additional Beans
+```
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.security.oauth2.server.authorization.client.RegisteredClient;
+import org.springframework.security.oauth2.server.authorization.client.RegisteredClientRepository;
+import org.springframework.security.oauth2.server.authorization.client.InMemoryRegisteredClientRepository;
+import org.springframework.security.oauth2.core.AuthorizationGrantType;
+import org.springframework.security.oauth2.server.authorization.settings.AuthorizationServerSettings;
+import com.nimbusds.jose.jwk.JWKSet;
+import com.nimbusds.jose.jwk.source.JWKSource;
+import com.nimbusds.jose.proc.SecurityContext;
+
+@Configuration
+public class OAuth2Config {
+
+    @Bean
+    public RegisteredClientRepository registeredClientRepository() {
+        RegisteredClient registeredClient = RegisteredClient.withId("client-id")
+            .clientId("client-id")
+            .clientSecret("{noop}client-secret")
+            .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
+            .authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
+            .redirectUri("https://example.com/callback")
+            .scope("read")
+            .scope("write")
+            .build();
+        return new InMemoryRegisteredClientRepository(registeredClient);
+    }
+
+    @Bean
+    public AuthorizationServerSettings authorizationServerSettings() {
+        return AuthorizationServerSettings.builder()
+            .issuer("https://your-authorization-server.com")
+            .build();
+    }
+
+    @Bean
+    public JWKSource<SecurityContext> jwkSource() {
+        // Example of generating or loading an RSA key
+        JWKSet jwkSet = new JWKSet();
+        return (jwkSelector, securityContext) -> jwkSelector.select(jwkSet);
+    }
+}
+```
+Final Thoughts
+Your configuration is correct, but make sure to add the RegisteredClientRepository, AuthorizationServerSettings, and JWKSource beans to fully support OAuth2 clients, token issuance, and secure JWT signing.
+Ensure that your project includes the necessary dependencies for OAuth2 and security, such as spring-security-oauth2-authorization-server.
