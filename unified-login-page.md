@@ -10,3 +10,4 @@ Adjust Authentication Logic: In your custom authentication logic, handle the sel
 Redirect Logic: After a successful login, redirect the user to the appropriate redirect_uri associated with the selected client.
 
 This approach allows you to have a single, unified login page while managing multiple clients/applications effectively in your OAuth2 server.
+
